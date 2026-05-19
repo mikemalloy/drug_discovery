@@ -1,21 +1,56 @@
-# Secrets
+# ── Project-specific ──────────────────────────────────────────────────────────
+# Secrets — never commit API keys
 .env
+.envrc
 
-# Trained model checkpoints (push to HuggingFace Hub instead)
+# Trained model checkpoints (use HuggingFace Hub for model storage)
 chemberta-tox21-*/
 
-# Weights & Biases logs
+# Weights & Biases run logs
 wandb/
 
-# Python
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
 *.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+build/
+dist/
+.eggs/
+
+# ── Environments ──────────────────────────────────────────────────────────────
 .venv/
 venv/
+env/
+ENV/
 
-# Jupyter
+# ── Jupyter ───────────────────────────────────────────────────────────────────
 .ipynb_checkpoints/
+profile_default/
+ipython_config.py
 
-# macOS
+# ── Testing / coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# ── Type checkers ─────────────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
 .DS_Store
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
