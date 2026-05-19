@@ -1,0 +1,21 @@
+# Secrets
+.env
+
+# Trained model checkpoints (push to HuggingFace Hub instead)
+chemberta-tox21-*/
+
+# Weights & Biases logs
+wandb/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
