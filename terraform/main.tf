@@ -40,6 +40,7 @@ resource "aws_apprunner_service" "backend" {
         port = "8000"
         runtime_environment_variables = {
           PYTHONUNBUFFERED = "1"
+          CLERK_JWKS_URL   = var.clerk_jwks_url
         }
       }
       image_repository_type = "ECR"
