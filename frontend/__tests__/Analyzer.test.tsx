@@ -157,4 +157,52 @@ describe('Analyzer', () => {
       expect(screen.getByText(target)).toBeInTheDocument();
     });
   });
+
+  // ── Error handling ───────────────────────────────────────────────────
+
+  it('shows invalid SMILES message in both cards on 422', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 422, json: async () => ({}) });
+    render(<Analyzer />);
+    fireEvent.change(screen.getByPlaceholderText('CC(=O)Oc1ccccc1C(=O)O'), {
+      target: { value: 'not-smiles' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /analyze/i }));
+    });
+    // Error message appears in both cards
+    expect(
+      screen.getAllByText('Invalid SMILES string — please check your input.').length
+    ).toBe(2);
+  });
+
+  it('shows server error message on network failure', async () => {
+    mockFetch.mockRejectedValue(new Error('Network error'));
+    render(<Analyzer />);
+    fireEvent.change(screen.getByPlaceholderText('CC(=O)Oc1ccccc1C(=O)O'), {
+      target: { value: 'CC' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /analyze/i }));
+    });
+    expect(
+      screen.getAllByText('Could not reach the analysis server.').length
+    ).toBe(2);
+  });
+
+  it('resets to idle state when Retry is clicked', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 422, json: async () => ({}) });
+    render(<Analyzer />);
+    fireEvent.change(screen.getByPlaceholderText('CC(=O)Oc1ccccc1C(=O)O'), {
+      target: { value: 'invalid' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /analyze/i }));
+    });
+    // Click the first Retry button (one per card, both work)
+    fireEvent.click(screen.getAllByRole('button', { name: /retry/i })[0]);
+    expect(
+      screen.getByText('Enter a SMILES string and click Analyze.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^analyze$/i })).toBeInTheDocument();
+  });
 });
