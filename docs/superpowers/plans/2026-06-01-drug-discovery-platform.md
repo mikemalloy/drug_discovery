@@ -24,7 +24,7 @@ Drug Discovery/
 │   ├── inference.py        # Lazy model singleton: predict_probs, batch_predict_probs
 │   ├── chemistry.py        # RDKit helpers: ADMET, PAINS, SVG, Lipinski, Veber
 │   ├── report.py           # generate_report() orchestrator — source of truth for API schema
-│   ├── Dockerfile          # python:3.12-slim, CPU torch, checkpoint baked in
+│   ├── Dockerfile          # python:3.12-slim, CPU torch, model pre-downloaded from HF Hub
 │   ├── requirements.txt
 │   └── tests/
 │       ├── conftest.py     # TestClient fixture, stub report, mock patches
@@ -1120,21 +1120,9 @@ _load() is called on first use. This keeps test imports fast.
 import glob
 import torch
 
-BASE_MODEL = 'DeepChem/ChemBERTa-77M-MTR'
-# In Docker: /app/checkpoints/. Locally: relative path.
-_CHECKPOINT_PATTERNS = [
-    '/app/checkpoints/chemberta-tox21-multitarget-*',
-    'chemberta-tox21-multitarget-*',
-]
-
-def _find_model_dir() -> str:
-    for pattern in _CHECKPOINT_PATTERNS:
-        matches = sorted(glob.glob(pattern))
-        if matches:
-            return matches[-1]
-    return 'chemberta-tox21-multitarget-NOT-FOUND'  # fails at _load(), not import
-
-MODEL_DIR = _find_model_dir()  # set at import but NOT loaded until first use
+# Model hosted on HuggingFace Hub — pushed via scripts/push_to_hub.py
+HF_REPO_ID = 'mike-malloy/chemberta-tox21-multitarget'
+MODEL_DIR   = HF_REPO_ID  # used in /health response and as from_pretrained() arg
 DEVICE    = 'cpu'  # App Runner has no GPU
 
 TARGET_NAMES = [
@@ -1167,16 +1155,9 @@ def _load():
     if _model is not None:
         return
     from transformers import AutoTokenizer, AutoModelForSequenceClassification
-    from peft import PeftModel
-    print(f"[inference] Loading tokenizer from {MODEL_DIR}...")
+    print(f"[inference] Loading from HF Hub: {MODEL_DIR}...")
     _tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
-    print(f"[inference] Loading model from {MODEL_DIR}...")
-    base = AutoModelForSequenceClassification.from_pretrained(
-        BASE_MODEL, num_labels=NUM_TARGETS,
-        ignore_mismatched_sizes=True, attn_implementation='eager',
-    )
-    m = PeftModel.from_pretrained(base, MODEL_DIR)
-    _model = m.merge_and_unload()
+    _model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR)
     _model.eval().to(DEVICE)
     print("[inference] Model ready.")
 
@@ -1772,8 +1753,13 @@ RUN grep -v '^torch' /tmp/requirements.txt | \
     grep -v '^httpx' | \
     pip install --no-cache-dir -r /dev/stdin
 
-# Copy model checkpoint (wildcard matches the timestamped directory)
-COPY chemberta-tox21-multitarget-* /app/checkpoints/
+# Pre-download model from HuggingFace Hub into image layer (runs once at build time)
+# Container starts instantly — no download delay at runtime
+RUN python -c "\
+from transformers import AutoTokenizer, AutoModelForSequenceClassification; \
+AutoModelForSequenceClassification.from_pretrained('mike-malloy/chemberta-tox21-multitarget'); \
+AutoTokenizer.from_pretrained('mike-malloy/chemberta-tox21-multitarget'); \
+print('Model cached.')"
 
 # Copy application source
 COPY backend/server.py backend/inference.py backend/chemistry.py backend/report.py /app/
