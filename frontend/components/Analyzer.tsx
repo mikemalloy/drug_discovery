@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import type { AnalyzeResponse } from '@/types/report';
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
@@ -35,7 +36,20 @@ interface CardProps {
   onRetry: () => void;
 }
 
+// ── Auth boundary ────────────────────────────────────────────────────────────
+// Calling useAuth here (not in AnalyzerInner) keeps it from re-running when
+// form state changes, so the getToken reference stays stable across re-renders.
+
 export default function Analyzer() {
+  const { getToken } = useAuth();
+  return <AnalyzerInner getToken={getToken} />;
+}
+
+// ── Inner component ──────────────────────────────────────────────────────────
+
+type GetToken = ReturnType<typeof useAuth>['getToken'];
+
+function AnalyzerInner({ getToken }: { getToken: GetToken }) {
   const [smiles, setSmiles] = useState('');
   const [compoundName, setCompoundName] = useState('');
   const [status, setStatus] = useState<Status>('idle');
@@ -57,6 +71,13 @@ export default function Analyzer() {
   const handleAnalyze = async () => {
     if (!smiles.trim() || status === 'loading') return;
 
+    const token = await getToken();
+    if (!token) {
+      setStatus('error');
+      setErrorMessage('Authentication required — please sign in.');
+      return;
+    }
+
     setStatus('loading');
     setStepIndex(0);
     setReport(null);
@@ -73,7 +94,10 @@ export default function Analyzer() {
         `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/analyze`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ smiles: smiles.trim(), compound_name: compoundName }),
         }
       );

@@ -1,6 +1,11 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Analyzer from '@/components/Analyzer';
+import { useAuth } from '@clerk/clerk-react';
+
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: vi.fn(() => ({ getToken: vi.fn().mockResolvedValue('test-token') })),
+}));
 
 const mockFetch = vi.fn();
 
@@ -233,5 +238,46 @@ describe('Analyzer', () => {
     // Both buttons are wired to the same handleRetry — verify second also works
     fireEvent.click(screen.getAllByRole('button', { name: /retry/i })[1]);
     expect(screen.getByText('Enter a SMILES string and click Analyze.')).toBeInTheDocument();
+  });
+
+  // ── Auth ─────────────────────────────────────────────────────────────
+
+  it('shows auth error in both cards when getToken returns null', async () => {
+    vi.mocked(useAuth).mockReturnValueOnce({
+      getToken: vi.fn().mockResolvedValue(null),
+    } as ReturnType<typeof useAuth>);
+    render(<Analyzer />);
+    fireEvent.change(screen.getByPlaceholderText('CC(=O)Oc1ccccc1C(=O)O'), {
+      target: { value: 'CC' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /analyze/i }));
+    });
+    expect(
+      screen.getAllByText('Authentication required — please sign in.').length
+    ).toBe(2);
+  });
+
+  it('sends Authorization header with fetch', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => STUB_REPORT,
+    });
+    render(<Analyzer />);
+    fireEvent.change(screen.getByPlaceholderText('CC(=O)Oc1ccccc1C(=O)O'), {
+      target: { value: 'CC(=O)Oc1ccccc1C(=O)O' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /analyze/i }));
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token',
+        }),
+      })
+    );
   });
 });
