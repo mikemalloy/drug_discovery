@@ -14,8 +14,10 @@ def client():
          patch('inference.batch_predict_probs',
                return_value=np.array([[0.1] * 12])):
         from fastapi.testclient import TestClient
-        from server import app
-        return TestClient(app)
+        from server import app, clerk_guard
+        app.dependency_overrides[clerk_guard] = lambda: None
+        yield TestClient(app)
+        app.dependency_overrides.clear()
 
 
 def test_screen_valid_smiles_returns_200(client):
