@@ -49,7 +49,10 @@ export default function Analyzer() {
     timersRef.current = [];
   };
 
-  useEffect(() => () => clearTimers(), []);
+  useEffect(() => () => {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+  }, []);
 
   const handleAnalyze = async () => {
     if (!smiles.trim() || status === 'loading') return;
@@ -90,6 +93,7 @@ export default function Analyzer() {
 
       const data: AnalyzeResponse = await response.json();
       setReport(data);
+      setStepIndex(STEPS.length - 1);
       setStatus('done');
     } catch {
       clearTimers();
