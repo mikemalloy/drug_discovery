@@ -43,15 +43,14 @@ def main():
     run(['docker', 'login', '--username', 'AWS', '--password-stdin', endpoint],
         input=password.encode())
 
-    # Build from project root so Dockerfile can COPY checkpoint
-    run(['docker', 'build',
+    # Build for linux/amd64 (App Runner target) and push directly to ECR.
+    # --platform is required when building on Apple Silicon.
+    run(['docker', 'buildx', 'build',
+         '--platform', 'linux/amd64',
          '-f', os.path.join(PROJECT_ROOT, 'backend', 'Dockerfile'),
-         '-t', image_name,
+         '-t', f'{repo_url}:latest',
+         '--push',
          PROJECT_ROOT])
-
-    # Tag and push
-    run(['docker', 'tag', f'{image_name}:latest', f'{repo_url}:latest'])
-    run(['docker', 'push', f'{repo_url}:latest'])
     print(f"\nPushed: {repo_url}:latest")
 
 

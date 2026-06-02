@@ -6,7 +6,7 @@ WORKDIR /app
 
 # System deps required by RDKit
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libxrender1 libxext6 \
+    libxrender1 libxext6 libexpat1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install CPU-only PyTorch first (large, separate layer for caching)
