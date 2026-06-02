@@ -54,3 +54,9 @@ htmlcov/
 # ── IDEs ──────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
+
+# ── Terraform ─────────────────────────────────────────────────────────────────
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
