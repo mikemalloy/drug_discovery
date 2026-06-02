@@ -205,4 +205,33 @@ describe('Analyzer', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^analyze$/i })).toBeInTheDocument();
   });
+
+  it('shows server error message on 500 response', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+    render(<Analyzer />);
+    fireEvent.change(screen.getByPlaceholderText('CC(=O)Oc1ccccc1C(=O)O'), {
+      target: { value: 'CC' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /analyze/i }));
+    });
+    expect(
+      screen.getAllByText('Could not reach the analysis server.').length
+    ).toBe(2);
+  });
+
+  it('both Retry buttons reset to idle state', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 422, json: async () => ({}) });
+    render(<Analyzer />);
+    fireEvent.change(screen.getByPlaceholderText('CC(=O)Oc1ccccc1C(=O)O'), {
+      target: { value: 'invalid' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /analyze/i }));
+    });
+    expect(screen.getAllByRole('button', { name: /retry/i }).length).toBe(2);
+    // Both buttons are wired to the same handleRetry — verify second also works
+    fireEvent.click(screen.getAllByRole('button', { name: /retry/i })[1]);
+    expect(screen.getByText('Enter a SMILES string and click Analyze.')).toBeInTheDocument();
+  });
 });
