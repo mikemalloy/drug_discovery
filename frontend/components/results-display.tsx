@@ -67,7 +67,7 @@ function PassFailIndicator({ pass }: { pass: boolean }) {
 
 export function ResultsDisplay({ data }: ResultsDisplayProps) {
   const toxicCount = Object.values(data.toxicity).filter(t => t.label === 'toxic').length
-  const safeCount = Object.values(data.toxicity).filter(t => t.label === 'non-toxic').length
+  const safeCount = Object.values(data.toxicity).filter(t => t.label === 'safe').length
 
   return (
     <div className="space-y-12">
