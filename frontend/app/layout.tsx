@@ -1,36 +1,62 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import ClerkClientProvider from '@/components/ClerkClientProvider';
-import './globals.css';
+import type { Metadata, Viewport } from 'next'
+import { Inter, Geist_Mono } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
+import { ClerkProvider } from '@/components/clerk-provider'
+import './globals.css'
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const inter = Inter({
   subsets: ['latin'],
-});
+  variable: '--font-inter',
+})
 
 const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
   subsets: ['latin'],
-});
+  variable: '--font-geist-mono',
+})
 
 export const metadata: Metadata = {
-  title: 'Drug Discovery Platform',
-  description: 'AI-powered compound toxicity screening',
-};
+  title: 'Drug Discovery Platform - AI-Powered Compound Toxicity Screening',
+  description:
+    'Screen compounds against 12 Tox21 toxicity endpoints in seconds. Built for medicinal chemists and drug discovery scientists.',
+  generator: 'v0.app',
+  icons: {
+    icon: [
+      {
+        url: '/icon-light-32x32.png',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        url: '/icon-dark-32x32.png',
+        media: '(prefers-color-scheme: dark)',
+      },
+      {
+        url: '/icon.svg',
+        type: 'image/svg+xml',
+      },
+    ],
+    apple: '/apple-icon.png',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#FFFFFF',
+  width: 'device-width',
+  initialScale: 1,
+}
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+}: Readonly<{
+  children: React.ReactNode
+}>) {
   return (
-    <ClerkClientProvider>
-      <html
-        lang="en"
-        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    <html lang="en" className="light bg-background" style={{ colorScheme: 'light' }}>
+      <body
+        className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background`}
       >
-        <body className="h-full flex flex-col">{children}</body>
-      </html>
-    </ClerkClientProvider>
-  );
+        <ClerkProvider>{children}</ClerkProvider>
+        {process.env.NODE_ENV === 'production' && <Analytics />}
+      </body>
+    </html>
+  )
 }
