@@ -1,3 +1,109 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@theme inline {
+  /* Refined light theme - subdued and classy */
+  --font-sans: 'Inter', 'Helvetica Neue', 'Arial', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
+  
+  /* Warm cream background */
+  --color-background: #FAF9F7;
+  --color-foreground: #2B2B2B;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #2B2B2B;
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: #2B2B2B;
+  
+  /* Primary - deep charcoal */
+  --color-primary: #1A1A1A;
+  --color-primary-foreground: #FFFFFF;
+  
+  /* Secondary - warm light gray */
+  --color-secondary: #F0EFED;
+  --color-secondary-foreground: #2B2B2B;
+  
+  /* Muted */
+  --color-muted: #F5F4F2;
+  --color-muted-foreground: #71717A;
+  
+  /* Accent - refined crimson red */
+  --color-accent: #C41E3A;
+  --color-accent-foreground: #FFFFFF;
+  
+  /* Destructive */
+  --color-destructive: #C41E3A;
+  --color-destructive-foreground: #FFFFFF;
+  
+  /* Border and input */
+  --color-border: #E5E4E2;
+  --color-input: #FFFFFF;
+  --color-ring: #C41E3A;
+  
+  /* Risk tier colors */
+  --color-success: #16A34A;
+  --color-success-foreground: #FFFFFF;
+  --color-warning: #CA8A04;
+  --color-warning-foreground: #FFFFFF;
+  --color-danger: #C41E3A;
+  --color-danger-foreground: #FFFFFF;
+  
+  /* Chart colors */
+  --color-chart-1: #1A1A1A;
+  --color-chart-2: #C41E3A;
+  --color-chart-3: #6B7280;
+  --color-chart-4: #9CA3AF;
+  --color-chart-5: #D1D5DB;
+  
+  /* Soft rounded corners */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  
+  /* Sidebar */
+  --color-sidebar: #F5F4F2;
+  --color-sidebar-foreground: #2B2B2B;
+  --color-sidebar-primary: #1A1A1A;
+  --color-sidebar-primary-foreground: #FFFFFF;
+  --color-sidebar-accent: #F0EFED;
+  --color-sidebar-accent-foreground: #2B2B2B;
+  --color-sidebar-border: #E5E4E2;
+  --color-sidebar-ring: #C41E3A;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Subtle grid line pattern background - like portfolio site */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 80px 80px;
+}
+
+/* Accent underline decoration */
+.accent-underline {
+  text-decoration: underline;
+  text-decoration-color: #C41E3A;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 4px;
+}
+
+/* Left accent border */
+.accent-border-left {
+  border-left: 3px solid #C41E3A;
+  padding-left: 1rem;
+}
+
+/* Molecular structure SVG container */
+.molecule-svg-container svg {
+  max-width: 100%;
+  height: auto;
+}

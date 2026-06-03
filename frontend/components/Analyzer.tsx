@@ -1,395 +1,183 @@
-'use client';
+'use client'
 
-import { useState, useRef, useEffect } from 'react';
-import { useAuth } from '@clerk/clerk-react';
-import type { AnalyzeResponse } from '@/types/report';
+import { useState, useCallback } from 'react'
+import { useAuth } from '@clerk/clerk-react'
+import { Header } from '@/components/header'
+import { AnalysisProgress } from '@/components/analysis-progress'
+import { ResultsDisplay } from '@/components/results-display'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import { analyzeCompound, ApiError } from '@/lib/api'
+import type { AnalyzeResponse } from '@/types/report'
+import { ArrowRight, AlertCircle } from 'lucide-react'
 
-type Status = 'idle' | 'loading' | 'done' | 'error';
-
-const STEPS = [
-  'Validating SMILES',
-  'Computing toxicity scores',
-  'Computing explainability',
-  'Generating report',
-] as const;
-
-// Cumulative ms from analyze click at which each step advance fires
-const STEP_TIMINGS = [5_000, 20_000, 65_000];
-
-const TARGET_ORDER = [
-  'NR-AR', 'NR-AR-LBD', 'NR-AhR', 'NR-Aromatase',
-  'NR-ER', 'NR-ER-LBD', 'NR-PPAR-gamma',
-  'SR-ARE', 'SR-ATAD5', 'SR-HSE', 'SR-MMP', 'SR-p53',
-];
-
-const TIER_STYLES: Record<string, string> = {
-  Low: 'bg-green-100 text-green-800',
-  Moderate: 'bg-amber-100 text-amber-800',
-  High: 'bg-red-100 text-red-800',
-};
-
-interface CardProps {
-  status: Status;
-  report: AnalyzeResponse | null;
-  errorMessage: string;
-  stepIndex: number;
-  onRetry: () => void;
-}
-
-// ── Auth boundary ────────────────────────────────────────────────────────────
-// Calling useAuth here (not in AnalyzerInner) keeps it from re-running when
-// form state changes, so the getToken reference stays stable across re-renders.
-
-export default function Analyzer() {
-  const { getToken } = useAuth();
-  return <AnalyzerInner getToken={getToken} />;
-}
-
-// ── Inner component ──────────────────────────────────────────────────────────
-
-type GetToken = ReturnType<typeof useAuth>['getToken'];
-
-function AnalyzerInner({ getToken }: { getToken: GetToken }) {
-  const [smiles, setSmiles] = useState('');
-  const [compoundName, setCompoundName] = useState('');
-  const [status, setStatus] = useState<Status>('idle');
-  const [report, setReport] = useState<AnalyzeResponse | null>(null);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [stepIndex, setStepIndex] = useState(0);
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  const clearTimers = () => {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-  };
-
-  useEffect(() => () => {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-  }, []);
+export function Analyzer() {
+  const { getToken } = useAuth()
+  const [smiles, setSmiles] = useState('')
+  const [compoundName, setCompoundName] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [startTime, setStartTime] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<AnalyzeResponse | null>(null)
 
   const handleAnalyze = async () => {
-    if (!smiles.trim() || status === 'loading') return;
+    if (!smiles.trim()) return
 
-    const token = await getToken();
-    if (!token) {
-      setStatus('error');
-      setErrorMessage('Authentication required — please sign in.');
-      return;
-    }
-
-    setStatus('loading');
-    setStepIndex(0);
-    setReport(null);
-    setErrorMessage('');
-    clearTimers();
-
-    STEP_TIMINGS.forEach((delay, i) => {
-      const t = setTimeout(() => setStepIndex(i + 1), delay);
-      timersRef.current.push(t);
-    });
+    setIsLoading(true)
+    setStartTime(Date.now())
+    setError(null)
+    setResult(null)
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/analyze`,
+      const data = await analyzeCompound(
         {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ smiles: smiles.trim(), compound_name: compoundName }),
-        }
-      );
-
-      clearTimers();
-
-      if (response.status === 422) {
-        setStatus('error');
-        setErrorMessage('Invalid SMILES string — please check your input.');
-        return;
+          smiles: smiles.trim(),
+          compound_name: compoundName.trim() || undefined,
+        },
+        getToken
+      )
+      setResult(data)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError('An unexpected error occurred. Please try again.')
       }
-      if (!response.ok) {
-        setStatus('error');
-        setErrorMessage('Could not reach the analysis server.');
-        return;
-      }
-
-      const data: AnalyzeResponse = await response.json();
-      setReport(data);
-      setStepIndex(STEPS.length - 1);
-      setStatus('done');
-    } catch {
-      clearTimers();
-      setStatus('error');
-      setErrorMessage('Could not reach the analysis server.');
+    } finally {
+      setIsLoading(false)
+      setStartTime(null)
     }
-  };
+  }
 
   const handleRetry = () => {
-    setStatus('idle');
-    setReport(null);
-    setErrorMessage('');
-    setStepIndex(0);
-  };
+    setError(null)
+    handleAnalyze()
+  }
 
   return (
-    <div className="grid grid-cols-[2fr_3fr] h-full">
-      {/* Left panel */}
-      <div className="border-r border-gray-200 bg-white p-6 flex flex-col gap-4 overflow-y-auto">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            SMILES notation
-          </label>
-          <textarea
-            rows={3}
-            value={smiles}
-            onChange={e => setSmiles(e.target.value)}
-            disabled={status === 'loading'}
-            placeholder="CC(=O)Oc1ccccc1C(=O)O"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed resize-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Compound name{' '}
-            <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
-          <input
-            type="text"
-            value={compoundName}
-            onChange={e => setCompoundName(e.target.value)}
-            disabled={status === 'loading'}
-            placeholder="Aspirin"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          />
-        </div>
-        <button
-          onClick={handleAnalyze}
-          disabled={!smiles.trim() || status === 'loading'}
-          className="w-full px-4 py-2 bg-blue-800 text-white rounded-md text-sm font-medium hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {status === 'loading' ? 'Analyzing…' : 'Analyze'}
-        </button>
-      </div>
+    <div className="min-h-screen bg-background bg-grid-pattern">
+      <Header />
 
-      {/* Right column */}
-      <div className="bg-gray-50 p-6 flex flex-col gap-4 overflow-y-auto">
-        <SafetySummaryCard
-          status={status}
-          report={report}
-          errorMessage={errorMessage}
-          stepIndex={stepIndex}
-          onRetry={handleRetry}
-        />
-        <ToxicityProfileCard
-          status={status}
-          report={report}
-          errorMessage={errorMessage}
-          stepIndex={stepIndex}
-          onRetry={handleRetry}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ── Progress Steps ──────────────────────────────────────────────────────────
-
-function ProgressSteps({ stepIndex }: { stepIndex: number }) {
-  return (
-    <div className="py-4 px-2 flex flex-col gap-3">
-      {STEPS.map((label, i) => {
-        const done = i < stepIndex;
-        const active = i === stepIndex;
-        return (
-          <div key={label} className="flex items-center gap-3">
-            {done ? (
-              <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-xs flex-shrink-0">
-                ✓
+      <main className="px-6 py-12 lg:px-12 xl:px-24 lg:py-16 max-w-7xl mx-auto">
+        <div className="grid gap-12 lg:grid-cols-[380px_1fr] lg:gap-20">
+          {/* Input Panel */}
+          <div className="space-y-8">
+            {/* Section label with red accent */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-0.5 bg-accent" />
+              <span className="text-xs font-medium tracking-widest uppercase text-accent">
+                Compound Input
               </span>
-            ) : active ? (
-              <span className="w-5 h-5 rounded-full border-2 border-blue-800 border-t-transparent animate-spin flex-shrink-0" />
-            ) : (
-              <span className="w-5 h-5 rounded-full border border-gray-300 flex-shrink-0" />
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <Label htmlFor="smiles" className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
+                  SMILES String
+                </Label>
+                <Textarea
+                  id="smiles"
+                  placeholder="CC(=O)Oc1ccccc1C(=O)O"
+                  className="font-mono min-h-[120px] resize-none bg-card border-border placeholder:text-muted-foreground/50 focus:border-accent focus:ring-accent/20"
+                  value={smiles}
+                  onChange={(e) => setSmiles(e.target.value)}
+                  disabled={isLoading}
+                  aria-describedby="smiles-help"
+                />
+                <p id="smiles-help" className="text-xs text-muted-foreground">
+                  Enter a valid SMILES notation for the compound
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Label htmlFor="compound-name" className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
+                  Compound Name
+                  <span className="normal-case tracking-normal font-normal ml-2">(optional)</span>
+                </Label>
+                <Input
+                  id="compound-name"
+                  placeholder="e.g. Aspirin"
+                  className="bg-card border-border placeholder:text-muted-foreground/50 focus:border-accent focus:ring-accent/20"
+                  value={compoundName}
+                  onChange={(e) => setCompoundName(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <Button
+                onClick={handleAnalyze}
+                disabled={isLoading || !smiles.trim()}
+                className="w-full h-12 font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
+                size="lg"
+              >
+                {isLoading ? 'Analyzing...' : 'Analyze Compound'}
+                {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
+              </Button>
+            </div>
+
+            {isLoading && (
+              <div className="pt-4 border-t border-border">
+                <AnalysisProgress isLoading={isLoading} startTime={startTime} />
+              </div>
             )}
-            <span
-              className={`text-sm ${
-                done
-                  ? 'text-green-700'
-                  : active
-                  ? 'text-blue-800 font-medium'
-                  : 'text-gray-400'
-              }`}
-            >
-              {label}
-            </span>
           </div>
-        );
-      })}
-    </div>
-  );
-}
 
-// ── Error Display ───────────────────────────────────────────────────────────
-
-function ErrorDisplay({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="py-4 text-center">
-      <p className="text-sm text-red-600 mb-3">{message}</p>
-      <button
-        onClick={onRetry}
-        className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-      >
-        Retry
-      </button>
-    </div>
-  );
-}
-
-// ── Safety Summary Card ─────────────────────────────────────────────────────
-
-function SafetySummaryCard({
-  status,
-  report,
-  errorMessage,
-  stepIndex,
-  onRetry,
-}: CardProps) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5">
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
-        Safety Summary
-      </h2>
-      {status === 'idle' && (
-        <p className="text-sm text-gray-400">
-          Enter a SMILES string and click Analyze.
-        </p>
-      )}
-      {status === 'loading' && <ProgressSteps stepIndex={stepIndex} />}
-      {status === 'error' && (
-        <ErrorDisplay message={errorMessage} onRetry={onRetry} />
-      )}
-      {status === 'done' && report && (
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <span
-              className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                TIER_STYLES[report.risk_summary.tier] ?? 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              {report.risk_summary.tier} Risk
-            </span>
-            <span className="text-sm text-gray-500">
-              Score: {report.risk_summary.composite_score.toFixed(2)}
-            </span>
-          </div>
-          <table className="w-full text-sm">
-            <tbody>
-              {(
-                [
-                  ['Molecular Weight', report.admet.molecular_weight.toFixed(2)],
-                  ['LogP', report.admet.logp.toFixed(2)],
-                  ['HBD', String(report.admet.hbd)],
-                  ['HBA', String(report.admet.hba)],
-                  ['TPSA', report.admet.tpsa.toFixed(1)],
-                  ['Rotatable Bonds', String(report.admet.rotatable_bonds)],
-                  ['Lipinski', report.admet.lipinski_pass ? '✓ Pass' : '✗ Fail'],
-                  ['Veber', report.admet.veber_pass ? '✓ Pass' : '✗ Fail'],
-                  [
-                    'PAINS Alerts',
-                    report.admet.pains_alerts.length === 0
-                      ? 'None'
-                      : report.admet.pains_alerts.join(', '),
-                  ],
-                ] as [string, string][]
-              ).map(([label, value]) => (
-                <tr key={label} className="border-t border-gray-100">
-                  <td className="py-1.5 pr-4 text-gray-500 font-medium w-1/2">
-                    {label}
-                  </td>
-                  <td className="py-1.5 text-gray-800">{value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Toxicity Profile Card ───────────────────────────────────────────────────
-
-function ToxicityProfileCard({
-  status,
-  report,
-  errorMessage,
-  stepIndex,
-  onRetry,
-}: CardProps) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5">
-      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
-        Toxicity Profile
-      </h2>
-      {status === 'idle' && (
-        <p className="text-sm text-gray-400">Results will appear here.</p>
-      )}
-      {status === 'loading' && <ProgressSteps stepIndex={stepIndex} />}
-      {status === 'error' && (
-        <ErrorDisplay message={errorMessage} onRetry={onRetry} />
-      )}
-      {status === 'done' && report && (
-        <div className="flex flex-col gap-4">
-          <div
-            className="max-w-[200px] mx-auto"
-            dangerouslySetInnerHTML={{ __html: report.structure_svg }}
-          />
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="py-1.5 text-left text-gray-500 font-medium">
-                  Target
-                </th>
-                <th className="py-1.5 text-right text-gray-500 font-medium">
-                  Probability
-                </th>
-                <th className="py-1.5 text-right text-gray-500 font-medium">
-                  Label
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {TARGET_ORDER.map(target => {
-                const t = report.toxicity[target];
-                if (!t) return null;
-                const toxic = t.label === 'toxic';
-                return (
-                  <tr
-                    key={target}
-                    className={`border-t border-gray-100 ${
-                      toxic ? 'bg-red-50' : ''
-                    }`}
+          {/* Results Panel */}
+          <div>
+            {error && (
+              <div className="mb-8 p-5 border-l-3 border-l-accent bg-accent/5">
+                <div className="flex items-start gap-4">
+                  <AlertCircle className="h-5 w-5 text-accent mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-foreground mb-1">Analysis Error</p>
+                    <p className="text-sm text-muted-foreground">{error}</p>
+                  </div>
+                  <button
+                    onClick={handleRetry}
+                    className="text-sm font-medium text-accent hover:underline underline-offset-4"
                   >
-                    <td className="py-1.5 pr-4 text-gray-700">{target}</td>
-                    <td className="py-1.5 text-right text-gray-700">
-                      {t.probability.toFixed(2)}
-                    </td>
-                    <td
-                      className={`py-1.5 text-right font-medium ${
-                        toxic ? 'text-red-700' : 'text-green-700'
-                      }`}
-                    >
-                      {t.label}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {result && <ResultsDisplay data={result} />}
+
+            {!result && !error && !isLoading && (
+              <div className="h-full min-h-[500px] flex flex-col justify-center">
+                {/* Section label with red accent */}
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-8 h-0.5 bg-accent" />
+                  <span className="text-xs font-medium tracking-widest uppercase text-accent">
+                    Ready to Analyze
+                  </span>
+                </div>
+
+                <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-tight mb-6">
+                  Screen your compound
+                  <br />
+                  <span className="accent-underline">against Tox21</span>.
+                </h2>
+
+                <p className="text-lg text-muted-foreground leading-relaxed max-w-lg mb-8">
+                  Enter a SMILES string and click Analyze to screen your compound
+                  against 12 Tox21 toxicity endpoints with full ADMET profiling.
+                </p>
+
+                <div className="accent-border-left">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Our ML models provide risk stratification across nuclear receptor
+                    and stress response pathways with comprehensive molecular property analysis.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </main>
     </div>
-  );
+  )
 }
