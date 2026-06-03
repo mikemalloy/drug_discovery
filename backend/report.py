@@ -91,7 +91,7 @@ def generate_report(smiles: str, compound_name: str = "") -> dict:
     toxicity = {
         name: {
             "probability": round(probs[i], 4),
-            "label":       "TOXIC" if probs[i] >= THRESHOLDS[name] else "safe",
+            "label":       "toxic" if probs[i] >= THRESHOLDS[name] else "safe",
             "threshold":   THRESHOLDS[name],
         }
         for i, name in enumerate(TARGET_NAMES)
@@ -102,7 +102,7 @@ def generate_report(smiles: str, compound_name: str = "") -> dict:
 
     risk_score = float(np.dot(probs, WEIGHT_ARRAY) / WEIGHT_SUM)
     tier = "High" if risk_score > 0.5 else "Moderate" if risk_score > 0.25 else "Low"
-    toxic_targets = [name for name, t in toxicity.items() if t["label"] == "TOXIC"]
+    toxic_targets = [name for name, t in toxicity.items() if t["label"] == "toxic"]
 
     return {
         "smiles":           smiles,
