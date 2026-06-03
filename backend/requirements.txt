@@ -1,4 +1,4 @@
-# backend/requirements.txt
+# backend/requirements.txt — cache bust 2026-06-02
 torch --index-url https://download.pytorch.org/whl/cpu
 transformers>=4.44.0
 peft>=0.12.0
