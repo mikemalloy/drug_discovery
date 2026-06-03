@@ -24,8 +24,8 @@ RUN grep -v '^torch' /tmp/requirements.txt | \
 # Container starts instantly — no download delay at runtime
 RUN python -c "\
 from transformers import AutoTokenizer, AutoModelForSequenceClassification; \
-AutoModelForSequenceClassification.from_pretrained('mike-malloy/chemberta-tox21-multitarget'); \
-AutoTokenizer.from_pretrained('mike-malloy/chemberta-tox21-multitarget'); \
+AutoModelForSequenceClassification.from_pretrained('mike-malloy/chemberta-tox21-multitarget-scaffold-20260603_1643'); \
+AutoTokenizer.from_pretrained('mike-malloy/chemberta-tox21-multitarget-scaffold-20260603_1643'); \
 print('Model cached.')"
 
 # Copy application source
