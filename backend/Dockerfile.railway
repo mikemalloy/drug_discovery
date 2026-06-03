@@ -30,7 +30,8 @@ AutoModelForSequenceClassification.from_pretrained('mike-malloy/chemberta-tox21-
 AutoTokenizer.from_pretrained('mike-malloy/chemberta-tox21-multitarget'); \
 print('Model cached.')"
 
-# Copy application source
+# Copy application source — increment CACHE_BUST to force layer rebuild
+ARG CACHE_BUST=2
 COPY server.py inference.py chemistry.py report.py /app/
 
 EXPOSE 8000
