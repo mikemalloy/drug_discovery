@@ -23,6 +23,26 @@ export interface RiskSummary {
   flagged_targets: string[]
 }
 
+export interface NearestNeighbor {
+  smiles: string
+  similarity: number
+}
+
+// Mirrors backend _safe_ad(): on success `available` is true and the assessment
+// fields are present; if the reference set is missing it degrades to
+// { available: false, reason }.
+export interface ApplicabilityDomain {
+  available: boolean
+  reason?: string
+  in_domain?: boolean
+  reliability?: 'high' | 'moderate' | 'low' | 'invalid'
+  max_similarity?: number
+  mean_top_k_similarity?: number
+  k?: number
+  threshold?: number
+  nearest_neighbors?: NearestNeighbor[]
+}
+
 export interface AnalyzeResponse {
   smiles: string
   canonical_smiles: string
@@ -33,6 +53,7 @@ export interface AnalyzeResponse {
   }
   admet: AdmetProfile
   risk_summary: RiskSummary
+  applicability_domain?: ApplicabilityDomain
 }
 
 export interface AnalyzeRequest {

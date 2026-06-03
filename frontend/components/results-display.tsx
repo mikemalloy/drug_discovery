@@ -1,6 +1,6 @@
 'use client'
 
-import type { AnalyzeResponse } from '@/types/report'
+import type { AnalyzeResponse, ApplicabilityDomain } from '@/types/report'
 import { TOXICITY_TARGETS } from '@/types/report'
 import {
   Table,
@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { CheckCircle2, XCircle, AlertTriangle, Shield, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, XCircle, AlertTriangle, Shield, ShieldAlert, ShieldCheck, Crosshair, HelpCircle } from 'lucide-react'
 
 interface ResultsDisplayProps {
   data: AnalyzeResponse
@@ -65,6 +65,138 @@ function PassFailIndicator({ pass }: { pass: boolean }) {
   )
 }
 
+function ApplicabilityDomainSection({ ad }: { ad?: ApplicabilityDomain }) {
+  // Field absent or backend couldn't compute it: render an honest "unavailable"
+  // state rather than implying the prediction is trustworthy.
+  if (!ad || !ad.available) {
+    return (
+      <div>
+        <h2 className="text-sm font-semibold text-foreground mb-6 tracking-tight">
+          Applicability Domain
+        </h2>
+        <div className="flex items-start gap-3 bg-muted/40 border border-border p-4">
+          <HelpCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+          <p className="text-sm text-muted-foreground">
+            Reliability check unavailable
+            {ad?.reason ? ` (${ad.reason})` : ''}. The prediction is shown without
+            an in-domain assessment.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const reliability = ad.reliability ?? 'low'
+  const config = {
+    high: {
+      label: 'High Reliability',
+      blurb: 'This molecule closely resembles the training set — the prediction is well within the model’s applicability domain.',
+      className: 'bg-success/10 text-success',
+      icon: ShieldCheck,
+    },
+    moderate: {
+      label: 'Moderate Reliability',
+      blurb: 'This molecule is inside the applicability domain but near its edge — treat the prediction with some caution.',
+      className: 'bg-warning/10 text-warning',
+      icon: Shield,
+    },
+    low: {
+      label: 'Out of Domain',
+      blurb: 'This molecule is unlike anything the model was trained on. The prediction is an extrapolation and should not be trusted.',
+      className: 'bg-accent/10 text-accent',
+      icon: ShieldAlert,
+    },
+    invalid: {
+      label: 'Unassessable',
+      blurb: 'The structure could not be assessed against the training set.',
+      className: 'bg-muted text-muted-foreground',
+      icon: HelpCircle,
+    },
+  }[reliability]
+
+  const Icon = config.icon
+  const pct = (v?: number) => (v === undefined ? '—' : `${(v * 100).toFixed(1)}%`)
+
+  return (
+    <div>
+      <h2 className="text-sm font-semibold text-foreground mb-6 tracking-tight">
+        Applicability Domain
+      </h2>
+
+      <span
+        className={cn(
+          'inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold',
+          config.className
+        )}
+      >
+        <Icon className="h-4 w-4" />
+        {config.label}
+      </span>
+
+      <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
+        {config.blurb}
+      </p>
+
+      <div className="mt-6 space-y-0">
+        <div className="flex items-center justify-between py-3 border-b border-border/50">
+          <span className="text-sm text-muted-foreground">Nearest-neighbor similarity</span>
+          <span className="text-sm font-mono font-medium text-foreground">{pct(ad.max_similarity)}</span>
+        </div>
+        <div className="flex items-center justify-between py-3 border-b border-border/50">
+          <span className="text-sm text-muted-foreground">
+            Mean of top {ad.k ?? 5} similarity
+          </span>
+          <span className="text-sm font-mono font-medium text-foreground">{pct(ad.mean_top_k_similarity)}</span>
+        </div>
+        <div className="flex items-center justify-between py-3">
+          <span className="text-sm text-muted-foreground">In-domain threshold</span>
+          <span className="text-sm font-mono font-medium text-foreground">{pct(ad.threshold)}</span>
+        </div>
+      </div>
+
+      {ad.nearest_neighbors && ad.nearest_neighbors.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Crosshair className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Most similar training molecules
+            </span>
+          </div>
+          <div className="border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50 border-b border-border">
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground h-11">
+                    SMILES
+                  </TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground text-right h-11">
+                    Similarity
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ad.nearest_neighbors.map((n, i) => (
+                  <TableRow
+                    key={`${n.smiles}-${i}`}
+                    className="border-b border-border/50 last:border-0 hover:bg-transparent"
+                  >
+                    <TableCell className="text-xs font-mono py-3 break-all max-w-[320px]">
+                      {n.smiles}
+                    </TableCell>
+                    <TableCell className="text-sm text-right font-mono py-3 text-muted-foreground">
+                      {(n.similarity * 100).toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ResultsDisplay({ data }: ResultsDisplayProps) {
   const toxicCount = Object.values(data.toxicity).filter(t => t.label?.toLowerCase() === 'toxic').length
   const safeCount = Object.values(data.toxicity).filter(t => t.label?.toLowerCase() === 'safe').length
@@ -99,6 +231,11 @@ export function ResultsDisplay({ data }: ResultsDisplayProps) {
           </div>
         </div>
       </div>
+
+      <div className="border-t border-border" />
+
+      {/* Applicability Domain — gates trust in everything below */}
+      <ApplicabilityDomainSection ad={data.applicability_domain} />
 
       <div className="border-t border-border" />
 
