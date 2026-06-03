@@ -46,9 +46,25 @@ def _load():
     if _model is not None:
         return
     from transformers import AutoTokenizer, AutoModelForSequenceClassification
+    from peft import PeftModel
+
+    BASE_MODEL_ID = 'DeepChem/ChemBERTa-77M-MTR'
+
     print(f"[inference] Loading from HF Hub: {MODEL_DIR} @ {HF_REVISION}...")
-    _tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR, revision=HF_REVISION)
-    _model = AutoModelForSequenceClassification.from_pretrained(MODEL_DIR, revision=HF_REVISION)
+    _tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR, revision=HF_REVISION, trust_remote_code=True)
+
+    # This model was saved with PEFT (modules_to_save=["classifier"]).
+    # Plain AutoModelForSequenceClassification misses the classifier weights and falls
+    # back to ChemBERTa's 199-label config, causing IndexError at inference time.
+    # Correct approach: load base with explicit num_labels, then overlay PEFT adapters.
+    base = AutoModelForSequenceClassification.from_pretrained(
+        BASE_MODEL_ID,
+        num_labels=NUM_TARGETS,
+        problem_type="multi_label_classification",
+        ignore_mismatched_sizes=True,
+        trust_remote_code=True,
+    )
+    _model = PeftModel.from_pretrained(base, MODEL_DIR, revision=HF_REVISION)
     _model.eval().to(DEVICE)
     print("[inference] Model ready.")
 
