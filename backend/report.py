@@ -12,6 +12,21 @@ from inference import (
     TARGET_NAMES, TARGET_IDX, THRESHOLDS, SEVERITY_WEIGHTS, DEVICE,
 )
 from chemistry import mol_to_svg, compute_admet
+from applicability import ad_assessment
+
+
+def _safe_ad(canonical: str) -> dict:
+    """Applicability-domain check, never fatal to the response.
+    If the reference set isn't present (not yet exported) or RDKit hiccups, the
+    field degrades to {available: False} instead of failing the whole request."""
+    try:
+        result = ad_assessment(canonical)
+        result["available"] = True
+        return result
+    except FileNotFoundError:
+        return {"available": False, "reason": "reference set not installed"}
+    except Exception as exc:  # noqa: BLE001 — AD is advisory; never break /analyze
+        return {"available": False, "reason": f"{type(exc).__name__}: {exc}"}
 
 WEIGHT_ARRAY = np.array([SEVERITY_WEIGHTS[t] for t in TARGET_NAMES])
 WEIGHT_SUM   = WEIGHT_ARRAY.sum()
@@ -97,8 +112,9 @@ def generate_report(smiles: str, compound_name: str = "") -> dict:
         for i, name in enumerate(TARGET_NAMES)
     }
 
-    admet          = compute_admet(mol_can)
-    explainability = _compute_explainability(canonical, mol_can, probs)
+    admet            = compute_admet(mol_can)
+    explainability   = _compute_explainability(canonical, mol_can, probs)
+    applicability    = _safe_ad(canonical)
 
     risk_score = float(np.dot(probs, WEIGHT_ARRAY) / WEIGHT_SUM)
     tier = "High" if risk_score > 0.5 else "Moderate" if risk_score > 0.25 else "Low"
@@ -112,6 +128,7 @@ def generate_report(smiles: str, compound_name: str = "") -> dict:
         "toxicity":         toxicity,
         "admet":            admet,
         "explainability":   explainability,
+        "applicability_domain": applicability,
         "risk_summary": {
             "composite_score": round(risk_score, 4),
             "tier":            tier,

@@ -10,6 +10,7 @@ from tests.conftest import TARGET_NAMES, ASPIRIN
 REQUIRED_KEYS = frozenset({
     'smiles', 'canonical_smiles', 'compound_name', 'structure_svg',
     'toxicity', 'admet', 'explainability', 'risk_summary',
+    'applicability_domain',
 })
 
 
