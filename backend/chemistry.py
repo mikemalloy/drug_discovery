@@ -26,7 +26,7 @@ def mol_to_svg(mol: Chem.Mol, width: int = 360, height: int = 260) -> str:
 
 def compute_admet(mol: Chem.Mol) -> dict:
     """Return ADMET property dict for a molecule."""
-    mw   = Descriptors.ExactMolWt(mol)
+    mw   = Descriptors.MolWt(mol)
     logp = Descriptors.MolLogP(mol)
     hbd  = Descriptors.NumHDonors(mol)
     hba  = Descriptors.NumHAcceptors(mol)
@@ -52,7 +52,7 @@ def get_pains_alerts(mol: Chem.Mol) -> list[str]:
 
 
 def lipinski_pass(mol: Chem.Mol) -> bool:
-    mw, logp = Descriptors.ExactMolWt(mol), Descriptors.MolLogP(mol)
+    mw, logp = Descriptors.MolWt(mol), Descriptors.MolLogP(mol)
     hbd, hba  = Descriptors.NumHDonors(mol), Descriptors.NumHAcceptors(mol)
     return (int(mw > 500) + int(logp > 5) + int(hbd > 5) + int(hba > 10)) <= 1
 
