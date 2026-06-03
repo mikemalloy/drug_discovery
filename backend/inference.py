@@ -4,6 +4,7 @@ Lazy-loaded model singleton. Nothing loads at import time —
 _load() is called on first use. This keeps test imports fast.
 """
 import glob
+import math
 import torch
 
 # Model hosted on HuggingFace Hub — pushed via scripts/push_to_hub.py
@@ -24,11 +25,47 @@ NUM_TARGETS = len(TARGET_NAMES)
 
 # Per-target F1-maximizing thresholds tuned on the scaffold validation set
 # (re-tuned 2026-06-03 for the scaffold model; range 0.60–0.90, no ceiling hits).
-THRESHOLDS = {
+# These were tuned on UNCALIBRATED probabilities — see THRESHOLDS remap below.
+THRESHOLDS_RAW = {
     'NR-AR': 0.90, 'NR-AR-LBD': 0.75, 'NR-AhR': 0.75,
     'NR-Aromatase': 0.75, 'NR-ER': 0.70, 'NR-ER-LBD': 0.75,
     'NR-PPAR-gamma': 0.80, 'SR-ARE': 0.60, 'SR-ATAD5': 0.80,
     'SR-HSE': 0.65, 'SR-MMP': 0.70, 'SR-p53': 0.70,
+}
+
+# Per-endpoint temperature scaling (confidence calibration).
+# Fit on the scaffold VALIDATION logits with the model FROZEN, minimizing BCE
+# (calibration_temperatures.json, 2026-06-03). Temperature scaling is a monotonic
+# transform, so ROC-AUC is provably unchanged (verified: AUC_before == AUC_after on
+# every endpoint). Mean test ECE 0.214 -> 0.192. T<1 = model was underconfident.
+# Displayed probabilities use p = sigmoid(logit / T) so they reflect empirical
+# frequency rather than the model's raw (timid) scores.
+TEMPERATURES = {
+    'NR-AR': 0.5686, 'NR-AR-LBD': 0.5471, 'NR-AhR': 0.8079,
+    'NR-Aromatase': 1.1912, 'NR-ER': 0.6482, 'NR-ER-LBD': 0.7427,
+    'NR-PPAR-gamma': 0.8126, 'SR-ARE': 0.9626, 'SR-ATAD5': 0.9857,
+    'SR-HSE': 0.8242, 'SR-MMP': 1.0693, 'SR-p53': 1.0225,
+}
+_T_TENSOR = torch.tensor([TEMPERATURES[t] for t in TARGET_NAMES], dtype=torch.float32)
+
+
+def _logit(p: float) -> float:
+    return math.log(p / (1.0 - p))
+
+
+def _sigmoid(z: float) -> float:
+    return 1.0 / (1.0 + math.exp(-z))
+
+
+# Calibrated-scale thresholds. Because temperature scaling is monotonic, remapping
+# each raw threshold through the SAME transform — new = sigmoid(logit(raw) / T) —
+# preserves the EXACT toxic/safe decision boundary while keeping the threshold on
+# the same (calibrated) scale as the probabilities now shown to the user. Net effect:
+# verdicts are byte-for-byte identical to the pre-calibration model; only the
+# confidence numbers change. report.py / server.py consume THRESHOLDS unchanged.
+THRESHOLDS = {
+    t: round(_sigmoid(_logit(THRESHOLDS_RAW[t]) / TEMPERATURES[t]), 4)
+    for t in TARGET_NAMES
 }
 SEVERITY_WEIGHTS = {
     'NR-AR': 1.0, 'NR-AR-LBD': 1.0, 'NR-AhR': 1.5,
@@ -86,7 +123,8 @@ def predict_probs(smiles: str) -> list[float]:
     enc = {k: v.to(DEVICE) for k, v in enc.items()}
     with torch.no_grad():
         logits = _model(**enc).logits[0]
-    return torch.sigmoid(logits).cpu().tolist()
+    # temperature-scale per endpoint before sigmoid → calibrated probabilities
+    return torch.sigmoid(logits / _T_TENSOR.to(logits.device)).cpu().tolist()
 
 
 def batch_predict_probs(smiles_list: list[str], batch_size: int = 32):
@@ -101,5 +139,6 @@ def batch_predict_probs(smiles_list: list[str], batch_size: int = 32):
         enc = {k: v.to(DEVICE) for k, v in enc.items()}
         with torch.no_grad():
             logits = _model(**enc).logits
-        all_probs.append(torch.sigmoid(logits).cpu().numpy())
+        # temperature-scale per endpoint before sigmoid → calibrated probabilities
+        all_probs.append(torch.sigmoid(logits / _T_TENSOR.to(logits.device)).cpu().numpy())
     return np.vstack(all_probs)

@@ -1,0 +1,28 @@
+{
+  "method": "per-endpoint temperature scaling (Guo et al. 2017)",
+  "fit_on": "scaffold validation logits, model frozen, BCE-minimizing scalar T per endpoint",
+  "evaluated_on": "held-out scaffold test set",
+  "model_repo": "mike-malloy/chemberta-tox21-multitarget-scaffold-20260603_1643",
+  "fit_date": "2026-06-03",
+  "properties": {
+    "monotonic": true,
+    "roc_auc_preserved": "verified: AUC_before == AUC_after on every endpoint",
+    "mean_test_ece_before": 0.2140,
+    "mean_test_ece_after": 0.1919
+  },
+  "notes": "T<1 => model was underconfident (raw probabilities too close to 0.5); T>1 => overconfident. NR-Aromatase and SR-MMP regress slightly on test (val->test generalization gap on scaffold split). Displayed probabilities use p = sigmoid(logit / T); decision thresholds are remapped through the same monotonic transform so toxic/safe verdicts are unchanged.",
+  "temperatures": {
+    "NR-AR": 0.5686,
+    "NR-AR-LBD": 0.5471,
+    "NR-AhR": 0.8079,
+    "NR-Aromatase": 1.1912,
+    "NR-ER": 0.6482,
+    "NR-ER-LBD": 0.7427,
+    "NR-PPAR-gamma": 0.8126,
+    "SR-ARE": 0.9626,
+    "SR-ATAD5": 0.9857,
+    "SR-HSE": 0.8242,
+    "SR-MMP": 1.0693,
+    "SR-p53": 1.0225
+  }
+}
