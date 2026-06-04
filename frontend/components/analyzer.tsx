@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
-import { analyzeCompound, ApiError } from '@/lib/api'
-import type { AnalyzeResponse } from '@/types/report'
+import { analyzeCompound, summarizeCompound, ApiError } from '@/lib/api'
+import type { AnalyzeResponse, SummarizeResponse } from '@/types/report'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 
 export function Analyzer() {
@@ -21,6 +21,8 @@ export function Analyzer() {
   const [startTime, setStartTime] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AnalyzeResponse | null>(null)
+  const [summary, setSummary] = useState<SummarizeResponse | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
 
   const handleAnalyze = async () => {
     if (!smiles.trim()) return
@@ -29,6 +31,7 @@ export function Analyzer() {
     setStartTime(Date.now())
     setError(null)
     setResult(null)
+    setSummary(null)
 
     try {
       const data = await analyzeCompound(
@@ -39,6 +42,14 @@ export function Analyzer() {
         getToken
       )
       setResult(data)
+
+      // Advisory summary: fire after the numbers are in. A failure here must
+      // never surface as an analysis error — the report stands on its own.
+      setSummaryLoading(true)
+      summarizeCompound(data, getToken)
+        .then(setSummary)
+        .catch(() => setSummary({ available: false, reason: 'request failed' }))
+        .finally(() => setSummaryLoading(false))
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message)
@@ -144,7 +155,13 @@ export function Analyzer() {
               </div>
             )}
 
-            {result && <ResultsDisplay data={result} />}
+            {result && (
+              <ResultsDisplay
+                data={result}
+                summary={summary}
+                summaryLoading={summaryLoading}
+              />
+            )}
 
             {!result && !error && !isLoading && (
               <div className="h-full min-h-[500px] flex flex-col justify-center">

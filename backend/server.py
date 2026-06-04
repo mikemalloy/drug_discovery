@@ -41,6 +41,12 @@ class ScreenRequest(BaseModel):
     max_compounds: Optional[int] = 50
 
 
+class SummarizeRequest(BaseModel):
+    # The structured report returned by /analyze. Accepting it back avoids
+    # recomputing the (slow) explainability pass just to write a summary.
+    report: dict
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "model": MODEL_DIR, "device": DEVICE}
@@ -54,6 +60,23 @@ def analyze(
     if Chem.MolFromSmiles(req.smiles) is None:
         raise HTTPException(status_code=422, detail="Invalid SMILES string")
     return report.generate_report(req.smiles, req.compound_name or "")
+
+
+@app.post("/summarize")
+def summarize(
+    req: SummarizeRequest,
+    creds: HTTPAuthorizationCredentials = Depends(clerk_guard),
+):
+    """Grounded natural-language summary of a report produced by /analyze.
+
+    Advisory layer: if the LLM is unconfigured/unreachable, returns
+    {available: False, reason}. The deterministic /analyze numbers stand on
+    their own and never depend on this endpoint.
+    """
+    import summary
+    if not isinstance(req.report, dict) or "toxicity" not in req.report:
+        raise HTTPException(status_code=422, detail="report must be an /analyze response object")
+    return summary.generate_summary(req.report)
 
 
 @app.post("/screen")

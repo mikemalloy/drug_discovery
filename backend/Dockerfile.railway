@@ -33,8 +33,8 @@ print('Model cached.')"
 # Copy application source — increment CACHE_BUST to force layer rebuild
 # NOTE: ad_reference_smiles.json must be present in backend/ before deploy
 # (generate it with the export cell in chemberta_tox21_multitarget.ipynb).
-ARG CACHE_BUST=4
-COPY server.py inference.py chemistry.py report.py applicability.py ad_reference_smiles.json /app/
+ARG CACHE_BUST=5
+COPY server.py inference.py chemistry.py report.py applicability.py summary.py ad_reference_smiles.json /app/
 
 EXPOSE 8000
 

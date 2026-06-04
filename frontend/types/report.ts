@@ -61,6 +61,25 @@ export interface AnalyzeRequest {
   compound_name?: string
 }
 
+export interface SummaryGovernance {
+  model: string
+  generated_at: string
+  prompt_sha256: string
+  input_report_sha256: string
+  temperature: number
+  input_tokens?: number | null
+  output_tokens?: number | null
+}
+
+// Mirrors backend summary.generate_summary(): available+markdown+governance on
+// success, or { available: false, reason } when the LLM is unconfigured/unreachable.
+export interface SummarizeResponse {
+  available: boolean
+  reason?: string
+  markdown?: string
+  governance?: SummaryGovernance
+}
+
 export const TOXICITY_TARGETS = [
   'NR-AR',
   'NR-AR-LBD',

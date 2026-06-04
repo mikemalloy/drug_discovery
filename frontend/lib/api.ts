@@ -1,4 +1,4 @@
-import type { AnalyzeRequest, AnalyzeResponse } from '@/types/report'
+import type { AnalyzeRequest, AnalyzeResponse, SummarizeResponse } from '@/types/report'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -48,6 +48,36 @@ export async function analyzeCompound(
       throw new ApiError('Authentication required. Please sign in.', 403)
     }
     throw new ApiError('Analysis failed. Please try again.', response.status)
+  }
+
+  return response.json()
+}
+
+// Grounded natural-language summary of an /analyze report. Advisory: callers
+// should treat a thrown error or { available: false } as "no summary", never
+// as a failure of the analysis itself.
+export async function summarizeCompound(
+  report: AnalyzeResponse,
+  getToken: () => Promise<string | null>
+): Promise<SummarizeResponse> {
+  if (!API_URL) {
+    throw new ApiError('API URL not configured', 500)
+  }
+
+  const token = await getToken()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const response = await fetch(`${API_URL}/summarize`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ report }),
+  })
+
+  if (!response.ok) {
+    throw new ApiError('Summary unavailable.', response.status)
   }
 
   return response.json()
