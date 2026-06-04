@@ -31,10 +31,24 @@ function inline(s: string): string {
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
 }
 
+function isTableRow(line: string): boolean {
+  return line.trimStart().startsWith('|') && line.trimEnd().endsWith('|')
+}
+
+function isSeparatorRow(line: string): boolean {
+  return isTableRow(line) && /^\|[\s|:-]+\|$/.test(line.trim())
+}
+
+function parseTableCells(line: string): string[] {
+  return line.trim().slice(1, -1).split('|').map(c => c.trim())
+}
+
 function toHtml(md: string): string {
   const lines = escapeHtml(md.replace(/\r\n/g, '\n')).split('\n')
   const out: string[] = []
   let listType: 'ul' | 'ol' | null = null
+  let inTable = false
+  let tableHeaderDone = false
 
   const closeList = () => {
     if (listType) {
@@ -43,8 +57,47 @@ function toHtml(md: string): string {
     }
   }
 
+  const closeTable = () => {
+    if (inTable) {
+      out.push('</tbody></table></div>')
+      inTable = false
+      tableHeaderDone = false
+    }
+  }
+
   for (const raw of lines) {
     const line = raw.trimEnd()
+
+    // Table rows
+    if (isTableRow(line)) {
+      closeList()
+      if (isSeparatorRow(line)) {
+        // separator between header and body — switch from thead to tbody
+        if (inTable) {
+          out.push('</thead><tbody>')
+          tableHeaderDone = true
+        }
+        continue
+      }
+      const cells = parseTableCells(line)
+      if (!inTable) {
+        out.push('<div class="my-3 overflow-x-auto"><table class="w-full text-sm border-collapse">')
+        out.push('<thead>')
+        inTable = true
+        tableHeaderDone = false
+      }
+      const tag = tableHeaderDone ? 'td' : 'th'
+      const cls = tableHeaderDone
+        ? 'px-3 py-2 text-left text-muted-foreground border border-border/50'
+        : 'px-3 py-2 text-left font-semibold text-foreground bg-muted/50 border border-border/50'
+      const row = cells.map(c => `<${tag} class="${cls}">${inline(c)}</${tag}>`).join('')
+      out.push(`<tr>${row}</tr>`)
+      continue
+    }
+
+    // Non-table line — close any open table
+    closeTable()
+
     if (!line.trim()) {
       closeList()
       continue
@@ -90,6 +143,7 @@ function toHtml(md: string): string {
     out.push(`<p class="text-sm text-muted-foreground leading-relaxed my-2">${inline(line)}</p>`)
   }
   closeList()
+  closeTable()
   return out.join('\n')
 }
 
