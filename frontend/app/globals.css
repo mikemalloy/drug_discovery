@@ -2,65 +2,42 @@
 @import 'tw-animate-css';
 
 @theme inline {
-  /* Refined light theme - subdued and classy */
   --font-sans: 'Inter', 'Helvetica Neue', 'Arial', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
-  
-  /* Warm cream background */
   --color-background: #FAF9F7;
   --color-foreground: #2B2B2B;
   --color-card: #FFFFFF;
   --color-card-foreground: #2B2B2B;
   --color-popover: #FFFFFF;
   --color-popover-foreground: #2B2B2B;
-  
-  /* Primary - deep charcoal */
   --color-primary: #1A1A1A;
   --color-primary-foreground: #FFFFFF;
-  
-  /* Secondary - warm light gray */
   --color-secondary: #F0EFED;
   --color-secondary-foreground: #2B2B2B;
-  
-  /* Muted */
   --color-muted: #F5F4F2;
   --color-muted-foreground: #71717A;
-  
-  /* Accent - refined crimson red */
   --color-accent: #C41E3A;
   --color-accent-foreground: #FFFFFF;
-  
-  /* Destructive */
   --color-destructive: #C41E3A;
   --color-destructive-foreground: #FFFFFF;
-  
-  /* Border and input */
   --color-border: #E5E4E2;
   --color-input: #FFFFFF;
   --color-ring: #C41E3A;
-  
-  /* Risk tier colors */
   --color-success: #16A34A;
   --color-success-foreground: #FFFFFF;
   --color-warning: #CA8A04;
   --color-warning-foreground: #FFFFFF;
   --color-danger: #C41E3A;
   --color-danger-foreground: #FFFFFF;
-  
-  /* Chart colors */
   --color-chart-1: #1A1A1A;
   --color-chart-2: #C41E3A;
   --color-chart-3: #6B7280;
   --color-chart-4: #9CA3AF;
   --color-chart-5: #D1D5DB;
-  
-  /* Soft rounded corners */
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
-  
-  /* Sidebar */
   --color-sidebar: #F5F4F2;
   --color-sidebar-foreground: #2B2B2B;
   --color-sidebar-primary: #1A1A1A;
@@ -72,38 +49,27 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground; }
 }
 
-/* Subtle grid line pattern background - like portfolio site */
-.bg-grid-pattern {
-  background-image: 
-    linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
-  background-size: 80px 80px;
-}
+.bg-grid-pattern { background-image: linear-gradient(to right,rgba(0,0,0,.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(0,0,0,.03) 1px,transparent 1px); background-size: 80px 80px; }
+.accent-underline { text-decoration:underline; text-decoration-color:#C41E3A; text-decoration-thickness:3px; text-underline-offset:4px; }
+.accent-border-left { border-left:3px solid #C41E3A; padding-left:1rem; }
+.molecule-svg-container svg { max-width:100%; height:auto; }
 
-/* Accent underline decoration */
-.accent-underline {
-  text-decoration: underline;
-  text-decoration-color: #C41E3A;
-  text-decoration-thickness: 3px;
-  text-underline-offset: 4px;
-}
-
-/* Left accent border */
-.accent-border-left {
-  border-left: 3px solid #C41E3A;
-  padding-left: 1rem;
-}
-
-/* Molecular structure SVG container */
-.molecule-svg-container svg {
-  max-width: 100%;
-  height: auto;
-}
+.doc-prose { font-size:1rem; line-height:1.625; color:#2B2B2B; }
+.doc-prose > * + * { margin-top:20px; }
+.doc-prose h2 { font-size:1.5rem; font-weight:700; letter-spacing:-0.02em; color:#1A1A1A; margin-top:44px; }
+.doc-prose h3 { font-size:1.125rem; font-weight:600; color:#1A1A1A; margin-top:32px; }
+.doc-prose p,.doc-prose li { color:#2B2B2B; }
+.doc-prose ul,.doc-prose ol { padding-left:22px; display:grid; gap:8px; }
+.doc-prose a { color:#C41E3A; text-decoration:underline; text-underline-offset:3px; }
+.doc-prose code { font-family:'Geist Mono',ui-monospace,monospace; font-size:.9em; background:#F5F4F2; border:1px solid #E5E4E2; border-radius:4px; padding:1px 6px; }
+.doc-prose blockquote { border-left:3px solid #C41E3A; padding-left:16px; color:#71717A; }
+.doc-prose table { width:100%; border-collapse:collapse; border:1px solid #E5E4E2; margin:8px 0; }
+.doc-prose th { background:#F5F4F2; text-align:left; padding:10px 14px; font-size:.75rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:#71717A; border-bottom:1px solid #E5E4E2; }
+.doc-prose td { padding:10px 14px; font-size:.875rem; border-bottom:1px solid rgba(229,228,226,.5); vertical-align:top; line-height:1.5; }
+.doc-prose td:first-child { font-family:'Geist Mono',ui-monospace,monospace; font-size:.75rem; font-weight:600; }
+.doc-prose tr:last-child td { border-bottom:none; }
+.doc-prose hr { border:none; border-top:1px solid #E5E4E2; margin:40px 0; }
