@@ -22,8 +22,3 @@ variable "app_runner_memory" {
   type        = string
   default     = "3 GB"
 }
-
-variable "clerk_jwks_url" {
-  description = "Clerk JWKS URL for backend JWT verification (from Clerk dashboard)"
-  type        = string
-}

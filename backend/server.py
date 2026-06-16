@@ -1,8 +1,6 @@
 # backend/server.py
-import os
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi_clerk_auth import ClerkConfig, ClerkHTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 import numpy as np
@@ -23,9 +21,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-clerk_config = ClerkConfig(jwks_url=os.getenv("CLERK_JWKS_URL", "https://placeholder.clerk.invalid/.well-known/jwks.json"))
-clerk_guard  = ClerkHTTPBearer(clerk_config)
 
 _WEIGHT_ARRAY = np.array([SEVERITY_WEIGHTS[t] for t in TARGET_NAMES])
 _WEIGHT_SUM   = _WEIGHT_ARRAY.sum()
@@ -53,20 +48,14 @@ def health():
 
 
 @app.post("/analyze")
-def analyze(
-    req: AnalyzeRequest,
-    creds: HTTPAuthorizationCredentials = Depends(clerk_guard),
-):
+def analyze(req: AnalyzeRequest):
     if Chem.MolFromSmiles(req.smiles) is None:
         raise HTTPException(status_code=422, detail="Invalid SMILES string")
     return report.generate_report(req.smiles, req.compound_name or "")
 
 
 @app.post("/summarize")
-def summarize(
-    req: SummarizeRequest,
-    creds: HTTPAuthorizationCredentials = Depends(clerk_guard),
-):
+def summarize(req: SummarizeRequest):
     """Grounded natural-language summary of a report produced by /analyze.
 
     Advisory layer: if the LLM is unconfigured/unreachable, returns
@@ -80,10 +69,7 @@ def summarize(
 
 
 @app.post("/screen")
-def screen(
-    req: ScreenRequest,
-    creds: HTTPAuthorizationCredentials = Depends(clerk_guard),
-):
+def screen(req: ScreenRequest):
     if not req.smiles_list:
         raise HTTPException(status_code=400, detail="smiles_list cannot be empty")
 

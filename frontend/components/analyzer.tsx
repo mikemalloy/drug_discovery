@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
 import { Header } from '@/components/header'
 import { AnalysisProgress } from '@/components/analysis-progress'
 import { ResultsDisplay } from '@/components/results-display'
@@ -12,8 +11,12 @@ import { analyzeCompound, summarizeCompound, ApiError } from '@/lib/api'
 import type { AnalyzeResponse, SummarizeResponse } from '@/types/report'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 
+// Clerk removed: no JWT. lib/api.ts still takes a token-getter, so we pass a
+// no-op. The backend must accept unauthenticated requests (bot protection is the
+// front-door human check / Turnstile, not a per-request Clerk JWT).
+const noToken = async () => null
+
 export function Analyzer() {
-  const { getToken } = useAuth()
   const [smiles, setSmiles] = useState('')
   const [compoundName, setCompoundName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -27,10 +30,10 @@ export function Analyzer() {
     if (!smiles.trim()) return
     setIsLoading(true); setStartTime(Date.now()); setError(null); setResult(null); setSummary(null)
     try {
-      const data = await analyzeCompound({ smiles: smiles.trim(), compound_name: compoundName.trim() || undefined }, getToken)
+      const data = await analyzeCompound({ smiles: smiles.trim(), compound_name: compoundName.trim() || undefined }, noToken)
       setResult(data)
       setSummaryLoading(true)
-      summarizeCompound(data, getToken).then(setSummary).catch(() => setSummary({ available: false, reason: 'request failed' })).finally(() => setSummaryLoading(false))
+      summarizeCompound(data, noToken).then(setSummary).catch(() => setSummary({ available: false, reason: 'request failed' })).finally(() => setSummaryLoading(false))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'An unexpected error occurred. Please try again.')
     } finally { setIsLoading(false); setStartTime(null) }

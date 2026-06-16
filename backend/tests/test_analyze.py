@@ -12,10 +12,8 @@ def client():
     with patch('report.generate_report', return_value=STUB_REPORT), \
          patch('inference.batch_predict_probs'):
         from fastapi.testclient import TestClient
-        from server import app, clerk_guard
-        app.dependency_overrides[clerk_guard] = lambda: None
+        from server import app
         yield TestClient(app)
-        app.dependency_overrides.clear()
 
 
 def test_analyze_valid_smiles_returns_200(client):

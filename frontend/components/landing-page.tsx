@@ -1,5 +1,4 @@
 'use client'
-import { SignInButton } from '@clerk/clerk-react'
 import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
 
@@ -9,7 +8,7 @@ const features = [
   { number:'03', title:'Risk Scoring', description:'Weighted composite risk score with Low, Moderate, and High tier classification plus 2D molecular structure visualization.' },
 ]
 
-export function LandingPage() {
+export function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
   return (
     <div className="min-h-screen bg-background bg-grid-pattern">
       <header className="border-b border-border/50 bg-background/95 backdrop-blur sticky top-0 z-50">
@@ -18,9 +17,7 @@ export function LandingPage() {
             <div className="w-1 h-6 bg-accent rounded-full" />
             <span className="text-sm font-semibold tracking-tight text-foreground">Drug Discovery Platform</span>
           </div>
-          <SignInButton mode="modal">
-            <Button variant="outline" size="sm" className="text-xs font-medium tracking-wide uppercase">Sign In</Button>
-          </SignInButton>
+          <Button variant="outline" size="sm" className="text-xs font-medium tracking-wide uppercase" onClick={onGetStarted}>Launch App</Button>
         </div>
       </header>
       <main>
@@ -39,14 +36,12 @@ export function LandingPage() {
                 <p className="text-sm text-muted-foreground leading-relaxed">From academic research to pharmaceutical development — our ChemBERTa-powered models bring the same precision to early-stage compound screening.</p>
               </div>
               <div className="mt-10">
-                <SignInButton mode="modal">
-                  <Button size="lg" className="h-12 px-8">Get Started <ArrowRight className="ml-2 h-4 w-4" /></Button>
-                </SignInButton>
+                <Button size="lg" className="h-12 px-8" onClick={onGetStarted}>Get Started <ArrowRight className="ml-2 h-4 w-4" /></Button>
               </div>
             </div>
             <div className="hidden lg:block pt-8">
               <nav className="space-y-4">
-                {[['About',true],['Features',false]].map(([label,active]) => (
+                {[['About', true], ['Features', false]].map(([label, active]) => (
                   <div key={String(label)} className="flex items-center gap-3">
                     <div className={`w-4 h-0.5 ${active ? 'bg-accent' : 'bg-border'}`} />
                     <span className={`text-xs font-medium tracking-wide uppercase ${active ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>

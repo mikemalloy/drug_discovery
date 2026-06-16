@@ -1,8 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { UserButton } from '@clerk/clerk-react'
-import { ChevronDown, Microscope, Cpu } from 'lucide-react'
+import { ChevronDown, Microscope, Cpu, ShieldCheck } from 'lucide-react'
 
 const DOC_ITEMS = [
   { key:'scientific', href:'/docs/scientific', label:'Scientific Analysis Documentation', desc:'What the platform predicts and why', Icon: Microscope },
@@ -52,7 +51,9 @@ export function Header() {
         </div>
         <nav className="flex items-center gap-6">
           <DocsMenu />
-          <UserButton appearance={{ elements: { avatarBox: 'h-8 w-8' } }} />
+          <span title="Human verified" className="inline-flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase text-success">
+            <ShieldCheck className="h-3.5 w-3.5" /> Verified
+          </span>
         </nav>
       </div>
     </header>
